@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+<head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; base-uri 'none'; form-action 'none'">
+<meta charset="utf-8">
+<title>Paytrace</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+body{background:#0c0e14;color:#e8eaf0;width:1280px;height:720px;overflow:hidden;}
+.app{display:flex;flex-direction:column;height:100%;padding:18px 28px;}
+header{display:flex;align-items:baseline;gap:14px;margin-bottom:12px;}
+header h1{font-size:26px;background:linear-gradient(90deg,#9945FF,#14F195);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.tagline{font-size:13px;color:#a0a4b8;}
+main{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr 1fr;gap:14px;flex:1;}
+.stats{grid-column:1/3;display:flex;gap:14px;}
+.card{flex:1;background:#151826;border:1px solid #262b40;border-radius:10px;padding:14px 16px;}
+.card span{font-size:12px;color:#8e93ab;}
+.card strong{display:block;font-size:22px;margin-top:4px;color:#14F195;}
+.panel{background:#151826;border:1px solid #262b40;border-radius:10px;padding:16px;}
+.panel h2{font-size:15px;margin-bottom:8px;color:#d5d8e8;}
+.panel p{font-size:13px;color:#a0a4b8;margin-bottom:8px;}
+code{background:#1f2334;padding:2px 6px;border-radius:4px;color:#9945FF;}
+button{background:linear-gradient(90deg,#9945FF,#14F195);border:none;color:#0c0e14;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;}
+button:hover{opacity:0.9;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th,td{text-align:left;padding:6px 4px;border-bottom:1px solid #262b40;color:#c6c9db;}
+th{color:#8e93ab;font-weight:500;}
+table button{padding:4px 10px;font-size:11px;}
+.escrowbar{background:#1f2334;border-radius:6px;height:14px;margin:10px 0;overflow:hidden;}
+.fill{background:linear-gradient(90deg,#9945FF,#14F195);height:100%;width:0%;transition:width 0.3s;}
+#status,#escrowStatus{color:#14F195;font-size:13px;min-height:16px;}
+.overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;}
+.modal{background:#151826;border:1px solid #262b40;border-radius:12px;padding:24px 28px;width:360px;}
+.modal h3{margin-bottom:12px;color:#14F195;}
+.modal p{font-size:13px;color:#c6c9db;margin-bottom:8px;}
+footer{text-align:center;font-size:11px;color:#5a5f78;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1 data-demo="header-title">Paytrace</h1>
+    <p class="tagline">Programmable micropayments & verifiable receipts for AI agents on Solana</p>
+  </header>
+  <main>
+    <section class="stats">
+      <div class="card"><span>Total Spend</span><strong data-demo="stat-spend">12.40 USDC</strong></div>
+      <div class="card"><span>Total Earned</span><strong data-demo="stat-earned">8.75 USDC</strong></div>
+      <div class="card"><span>Calls Made</span><strong data-demo="stat-calls">37</strong></div>
+    </section>
+
+    <section class="panel">
+      <h2>Simulate Agent Request</h2>
+      <p>Endpoint: <code>POST /v1/weather-data</code> · Price: 0.05 USDC/call</p>
+      <button data-demo="call-btn" onclick="payCall()">Call API & Pay</button>
+      <p id="status" data-demo="payment-status"></p>
+    </section>
+
+    <section class="panel">
+      <h2>On-chain Receipts</h2>
+      <table data-demo="receipts-table" id="receiptsTable">
+        <tr><th>Tx</th><th>Service</th><th>Amount</th><th></th></tr>
+        <tr><td>8xQ1...a9</td><td>weather-data</td><td>0.05 USDC</td><td><button data-demo="view-receipt" onclick="showReceipt()">View</button></td></tr>
+        <tr><td>5kLp...f2</td><td>vector-search</td><td>0.12 USDC</td><td>—</td></tr>
+      </table>
+    </section>
+
+    <section class="panel" data-demo="escrow-section">
+      <h2>Streaming Escrow</h2>
+      <p>Pay-per-second compute task · 0.30 USDC budget</p>
+      <button data-demo="escrow-btn" onclick="startEscrow()">Start Streaming Task</button>
+      <div class="escrowbar"><div class="fill" data-demo="escrow-fill" id="escrowFill"></div></div>
+      <p id="escrowStatus"></p>
+    </section>
+  </main>
+
+  <div class="overlay" id="overlay" style="display:none;">
+    <div class="modal" data-demo="receipt-detail">
+      <h3>Receipt Detail</h3>
+      <p>Tx Hash: 8xQ1F...a9Zc</p>
+      <p>Service: weather-data</p>
+      <p>Amount: 0.05 USDC</p>
+      <p>Status: Confirmed ✓ (compressed NFT log)</p>
+      <button data-demo="close-detail" onclick="closeReceipt()">Close</button>
+    </div>
+  </div>
+
+  <footer>Prototype — all data is simulated</footer>
+</div>
+
+<script>
+let spend = 12.40, calls = 37;
+
+function payCall(){
+  const status = document.querySelector('[data-demo="payment-status"]');
+  status.textContent = 'Processing payment...';
+  setTimeout(() => {
+    spend += 0.05; calls += 1;
+    document.querySelector('[data-demo="stat-spend"]').textContent = spend.toFixed(2) + ' USDC';
+    document.querySelector('[data-demo="stat-calls"]').textContent = calls;
+    status.textContent = 'Paid ✓ 0.05 USDC settled instantly, receipt logged.';
+    const table = document.querySelector('[data-demo="receipts-table"]');
+    const row = table.insertRow(1);
+    row.innerHTML = '<td>9zR4...k1</td><td>weather-data</td><td>0.05 USDC</td><td><button onclick="showReceipt()">View</button></td>';
+  }, 600);
+}
+
+function showReceipt(){
+  document.getElementById('overlay').style.display = 'flex';
+}
+function closeReceipt(){
+  document.getElementById('overlay').style.display = 'none';
+}
+
+function startEscrow(){
+  const fill = document.querySelector('[data-demo="escrow-fill"]');
+  const es = document.getElementById('escrowStatus');
+  fill.style.width = '0%';
+  es.textContent = 'Streaming payment started...';
+  let w = 0;
+  const iv = setInterval(() => {
+    w += 20; fill.style.width = w + '%';
+    if (w >= 100) {
+      clearInterval(iv);
+      es.textContent = 'Task complete. 0.30 USDC streamed & settled.';
+    }
+  }, 300);
+}
+</script>
+</body>
+</html>
